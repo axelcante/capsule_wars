@@ -10,9 +10,9 @@ GameObject:
   m_Component:
   - component: {fileID: 1009073918858481025}
   - component: {fileID: -273927140770120799}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Unit
-  m_TagString: Unit
+  m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -48,7 +48,6 @@ MonoBehaviour:
   m_teamNb: 0
   m_maxNbOfSoldiers: 12
   m_maxNbOfRows: 3
-  m_UnitType: 0
   m_nbOfSoliders: 0
   m_nbOfRows: 0
   m_State: 0

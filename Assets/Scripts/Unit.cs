@@ -1,12 +1,14 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using static UnityEditor.PlayerSettings;
 
 public class Unit : MonoBehaviour
 {
     [Header("Player")]
     [SerializeField] private Color m_TeamColor;
-    [SerializeField] private int m_teamNb;
+    [SerializeField] private string m_teamName;
+    private string m_enemyTeamName;
 
     // Unit parameters
     [Header("Parameters")]
@@ -26,6 +28,7 @@ public class Unit : MonoBehaviour
     // Unit movement information
     [Header("Movement")]
     private List<Vector3> m_TargetSolPositions = new List<Vector3>();
+    private Vector3 m_TargetPosition = new Vector3();
 
     // System variables
     [Header("System")]
@@ -53,11 +56,12 @@ public class Unit : MonoBehaviour
     private void FixedUpdate ()
     {
         // Change unit stage based on what soldiers are doing
-        if (m_State == UnitState.Moving && m_nbOfMoving == 0)
-            m_State = UnitState.Idle;
+        if (m_State == UnitState.Moving && m_nbOfMoving == 0) {
+            ChangeState(UnitState.Idle);
+        }
 
         if (m_State == UnitState.Idle && m_nbOfMoving == m_nbOfSoliders)
-            m_State = UnitState.Moving;
+            ChangeState(UnitState.Moving);
 
         // State machine deciding a unit's behaviours, which are in turn passed down to soldiers
         switch (m_State) {
@@ -81,8 +85,6 @@ public class Unit : MonoBehaviour
                 break;
         }
     }
-
-
 
     #region MOUSE DETETCION
 
@@ -110,7 +112,7 @@ public class Unit : MonoBehaviour
 
     #endregion MOUSE DETECTION
 
-    #region SPAWNING & MOVEMENT
+    #region SPAWNING, MOVEMENT & STATE MACHINE
 
     // When the unit is created, spawn the units based on start data
     private void SpawnSoldiers ()
@@ -137,33 +139,6 @@ public class Unit : MonoBehaviour
 
         m_nbOfRows = m_maxNbOfRows;
         m_nbOfSoliders = m_maxNbOfSoldiers;
-
-
-        /*
-         * TODO: DELETE WHEN NO LONGER NEEDED
-         */
-
-        //// Determine the number of columns based on the number of soldiers and rows
-        //int numCols = Mathf.CeilToInt((float)m_maxNbOfSoldiers / m_maxNbOfRows);
-
-        //// Loop over each soldier and calculate its position
-        //for (int i = 0; i < m_maxNbOfSoldiers; i++) {
-        //    // Calculate the row and column of this soldier
-        //    int row = i / numCols;
-        //    int col = i % numCols;
-
-        //    // Calculate the position of this soldier based on its row and column
-        //    Vector3 position = new Vector3(col * m_colSpacing, 1f, row * m_rowSpacing);
-
-        //    // Spawn the soldier at the calculated position and save it in the soldier list
-        //    GameObject soldier = Instantiate(m_SoldierPrefab, position, Quaternion.identity, transform);
-        //    soldier.GetComponent<Soldier>().SetUnit(this);
-        //    soldier.GetComponent<Soldier>().SetRow(row);
-        //    m_Soldiers.Add(soldier);
-        //}
-
-        //m_nbOfRows = m_maxNbOfRows;
-        //m_nbOfSoliders = m_maxNbOfSoldiers;
     }
 
 
@@ -181,17 +156,18 @@ public class Unit : MonoBehaviour
         BoxCollider collider = gameObject.GetComponent<BoxCollider>();
         if (!collider) {
             collider = gameObject.AddComponent<BoxCollider>();
+            collider.tag = m_teamName;
             collider.isTrigger = true;
         }
 
-        Vector3 newCenter = new Vector3(bounds.center.x - transform.position.x, 0f, bounds.center.z - transform.position.z);
+        Vector3 newCenter = new Vector3(bounds.center.x - transform.position.x, 1f, bounds.center.z - transform.position.z);
 
-        // Check if collider center has changed since last fixed frame; if not, mark unit as idle
-        if (collider.center == newCenter)
-            m_State = UnitState.Idle;
+        //// Check if collider center has changed since last fixed frame; if not, mark unit as idle
+        //if (collider.center == newCenter)
+            //ChangeState(UnitState.Idle);
 
         collider.center = newCenter;
-        collider.size = new Vector3(bounds.size.x + m_colliderPadding, 0.01f, bounds.size.z + m_colliderPadding);
+        collider.size = new Vector3(bounds.size.x + m_colliderPadding, 2.2f, bounds.size.z + m_colliderPadding);
     }
 
 
@@ -212,7 +188,7 @@ public class Unit : MonoBehaviour
             // Calculate the position of the soldier
             float xPos = col * m_colSpacing - ((numCols - 1) * m_colSpacing) / 2f;
             float zPos = row * m_rowSpacing - ((m_maxNbOfRows - 1) * m_colSpacing) / 2f;
-            Vector3 newPos = new Vector3(xPos + unitPos.x, 1f, zPos + unitPos.z);
+            Vector3 newPos = new Vector3(xPos + unitPos.x, 0f, zPos + unitPos.z);
             positions.Add(newPos);
             if (m_Soldiers[i].GetComponent<Soldier>())
                 m_Soldiers[i].GetComponent<Soldier>().SetTargetPosition(newPos);
@@ -237,7 +213,26 @@ public class Unit : MonoBehaviour
             //return positions;
         }
 
-    #endregion SPAWNING & MOVEMENT
+
+
+    // Change this unit's state
+    private void ChangeState (UnitState ut)
+    {
+        m_State = ut;
+
+        // If going back to an Idle state, remove target circle if there are any
+        if (ut == UnitState.Idle) {
+            if (m_TargetCircles.Count > 0) {
+                foreach (GameObject g in m_TargetCircles)
+                    Destroy(g);
+            }
+        } else if (ut == UnitState.Moving) {
+            m_TargetSolPositions = CalculateSoldierPositions(m_TargetPosition);
+            DisplayTargetPositions();
+        }
+    }
+
+    #endregion SPAWNING, MOVEMENT & STATE MACHINE
 
     #region UI ELEMENTS
 
@@ -300,14 +295,12 @@ public class Unit : MonoBehaviour
 
 
 
-    // Set target position to move towards when not retreating
+    // Set target position to move towards when not retreating and calculate soldier positions
     public void SetTargetPosition (Vector3 pos)
     {
         if (m_State != UnitState.Retreating) {
-            m_State = UnitState.Moving;
-            // Calculate soldier target positions
-            m_TargetSolPositions = CalculateSoldierPositions(pos);
-            DisplayTargetPositions();
+            m_TargetPosition = pos;
+            ChangeState(UnitState.Moving);
         }
     }
 
@@ -318,8 +311,10 @@ public class Unit : MonoBehaviour
 
 
 
-    public int GetTeamNb () => m_teamNb;
-    public void SetTeamNb (int nb) => m_teamNb = nb;
+    public string GetTeamName () => m_teamName;
+    public void SetTeamName (string name) => m_teamName = name;
+    public string GetEnemyTeamName () => m_enemyTeamName;
+    public void SetEnemyTeamName (string name) => m_enemyTeamName = name;
     public Color GetTeamColor () => m_TeamColor;
     public void SetTeamColor (Color col) => m_TeamColor = col;
 

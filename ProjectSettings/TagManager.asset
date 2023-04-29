@@ -5,7 +5,9 @@ TagManager:
   serializedVersion: 2
   tags:
   - Level
-  - Unit
+  - Player1
+  - Player2
+  - Obstacle
   layers:
   - Default
   - TransparentFX
@@ -13,8 +15,8 @@ TagManager:
   - Ground
   - Water
   - UI
-  - 
-  - 
+  - Units
+  - Soldiers
   - 
   - 
   - 

@@ -630,10 +630,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_UnitPrefab: {fileID: 6613546830229205402, guid: 02d91b6a0085a224c926f17b1da83032,
     type: 3}
+  m_Teams:
+  - Player1
+  - Player2
   m_TeamColours:
   - {r: 1, g: 0.766138, b: 0.18396229, a: 1}
   - {r: 0, g: 0.26525283, b: 1, a: 1}
-  m_nbOfTeams: 2
 --- !u!1 &1357503406
 GameObject:
   m_ObjectHideFlags: 0

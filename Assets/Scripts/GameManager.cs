@@ -5,8 +5,9 @@ using UnityEngine;
 public class GameManager : MonoBehaviour
 {
     [SerializeField] private GameObject m_UnitPrefab;
+    [SerializeField] private string[] m_Teams;
     [SerializeField] private Color[] m_TeamColours;
-    [SerializeField] private int m_nbOfTeams;
+    //[SerializeField] private int m_nbOfTeams;
     private Unit m_SelectedUnit = null;
 
     #region SINGLETON DECLARATION
@@ -37,12 +38,12 @@ public class GameManager : MonoBehaviour
     {
         // TODO: TEMP, REMOVE
         if (Input.GetKeyDown(KeyCode.R)) {
-            SpawnUnit(CameraScript.Instance.GetMouseWorldPos(), 0, m_TeamColours[0]);
+            SpawnUnit(CameraScript.Instance.GetMouseWorldPos(), m_Teams[0], m_Teams[1], m_TeamColours[0]);
         }
 
         // TODO: TEMP, REMOVE
         if (Input.GetKeyDown(KeyCode.T)) {
-            SpawnUnit(CameraScript.Instance.GetMouseWorldPos(), 1, m_TeamColours[1]);
+            SpawnUnit(CameraScript.Instance.GetMouseWorldPos(), m_Teams[1], m_Teams[0], m_TeamColours[1]);
         }
 
         // Unselect any selected unit if clicking in empty world space
@@ -62,10 +63,11 @@ public class GameManager : MonoBehaviour
 
 
     // Spawn a unit with a given team number
-    private void SpawnUnit (Vector3 pos, int teamNb, Color col)
+    private void SpawnUnit (Vector3 pos, string teamName, string enemyTeamName, Color col)
     {
         GameObject unit = Instantiate(m_UnitPrefab, pos, Quaternion.identity);
-        unit.GetComponent<Unit>().SetTeamNb(teamNb);
+        unit.GetComponent<Unit>().SetTeamName(teamName);
+        unit.GetComponent<Unit>().SetEnemyTeamName(enemyTeamName);
         unit.GetComponent<Unit>().SetTeamColor(col);
     }
 
