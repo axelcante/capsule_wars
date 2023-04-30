@@ -31,7 +31,8 @@ public class Soldier : MonoBehaviour
     // TODO: MAKE PRIVATE
     public Vector3 m_TargetPosition = new Vector3();
     private Vector3 m_Direction = new Vector3();
-    private float m_distance = 0f;
+    // TODO: MAKE PRIVATE
+    public float m_distance = 0f;
     private float m_maxDistance = 0f;
 
     [Header("Combat")]
@@ -41,10 +42,9 @@ public class Soldier : MonoBehaviour
     [Header("Data")]
     // TODO: SET TO PRIVATE
     public SoldierState m_State = SoldierState.Idle;
-    public Soldier m_EnemySoldier;
+    private Soldier m_EnemySoldier;
     [SerializeField] private float m_maxHealth = 100f;
-    // TODO: MAKE PRIVATE
-    public float m_health;
+    private float m_health;
     private bool m_isAlive = true;
     private int m_row;
 
@@ -81,7 +81,7 @@ public class Soldier : MonoBehaviour
                 LookForEnemy(m_detectEnemyDistance);
                 break;
 
-            case SoldierState.Fighting:
+            case SoldierState.Attacking:
                 GetFightPosition();
                 Charge();
                 break;
@@ -94,7 +94,7 @@ public class Soldier : MonoBehaviour
     private void OnCollisionStay (Collision collision)
     {
         if (IsEnemy(collision.collider)) {
-            if (m_State == SoldierState.Fighting) {
+            if (m_State == SoldierState.Attacking) {
                 DealDamage(collision.collider);
             }
         } else { // Crash into ally or obstacle
@@ -135,8 +135,9 @@ public class Soldier : MonoBehaviour
 
         // Calculate the target speed based on the distance to the target and a reversed evaluation curve (goes from 1 to 0 here)
         float speed;
-        if (m_distance <= m_distanceToSlowDown)
+        if (m_distance <= m_distanceToSlowDown) {
             speed = m_SpeedCurve.Evaluate(m_distance / m_maxDistance) * m_maxSpeed / 2;
+        }
         else
             speed = m_maxSpeed;
 
@@ -213,7 +214,7 @@ public class Soldier : MonoBehaviour
             if (IsEnemy(collider)) {
                 m_EnemySoldier = collider.gameObject.GetComponent<Soldier>();
                 if (m_EnemySoldier != null) {
-                    ChangeState(SoldierState.Fighting);
+                    ChangeState(SoldierState.Attacking);
                 }
             }
         }
@@ -230,11 +231,6 @@ public class Soldier : MonoBehaviour
             float randomiser = Random.Range(0f, 1f);
             float dmg = m_baseDamage * Mathf.Max(1, randomiser);
              targetSoldier.TakeDamage(dmg * Time.deltaTime);
-
-            // TODO REMOVE
-            if (dmg > 10) {
-                Debug.Log(dmg);
-            }
         }
     }
 
@@ -254,8 +250,10 @@ public class Soldier : MonoBehaviour
     {
         if (m_EnemySoldier)
             m_TargetPosition = m_EnemySoldier.gameObject.transform.position;
-        else
+        else {
+            SetTargetPosition(new Vector3(transform.position.x, 0f, transform.position.z));
             ChangeState(SoldierState.Idle);
+        }
     }
 
 
@@ -268,15 +266,15 @@ public class Soldier : MonoBehaviour
 
             switch (st) {
                 case SoldierState.Idle:
-                    m_Unit.UpdateNbOfMoving(-1);
+                    m_Unit.UpdateNbOfIdle(1);
                     break;
 
                 case SoldierState.Moving:
-                    m_Unit.UpdateNbOfMoving(1);
                     break;
 
-                case SoldierState.Fighting:
-                    m_Unit.TellIsFighting();
+                case SoldierState.Attacking:
+                    if (m_EnemySoldier)
+                        m_Unit.TellIsFighting(m_EnemySoldier.GetUnit());
                     break;
 
                 default:
@@ -345,7 +343,7 @@ public class Soldier : MonoBehaviour
     public Vector3 GetTargetPosition () => m_TargetPosition;
     public void SetTargetPosition (Vector3 tp)
     {
-        // TODO: For now, only move when moving or idle states
+        // Only move when moving or idle states
         // Force new maxDistance calculation
         if (m_State == SoldierState.Moving || m_State == SoldierState.Idle) {
             m_TargetPosition = tp;

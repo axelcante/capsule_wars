@@ -17,15 +17,13 @@ public enum UnitState
 {
     Idle,
     Moving,
-    Attacking,
-    Engaged,
-    Retreating
+    Seeking,
+    Attacking
 }
 
 public enum SoldierState
 {
     Idle,
     Moving,
-    Fighting,
-    Retreating
+    Attacking
 }

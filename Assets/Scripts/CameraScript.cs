@@ -65,7 +65,6 @@ public class CameraScript : MonoBehaviour
         // Cast a ray from the camera to the point in the 3D world where the mouse is located
         Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
         RaycastHit hit;
-        Debug.DrawLine(ray.origin, ray.origin + ray.direction * 100f, Color.green);
 
         // Check if the ray intersects with a collider that is not the ground (or part of the level)
         if (Physics.Raycast(ray, out hit) && !hit.collider.CompareTag("Level")) {

@@ -45,15 +45,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6ea7aa1a7c39d8f4babcfdae52ff1801, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_TeamColor: {r: 0, g: 0, b: 0, a: 0}
-  m_teamName: 
-  m_maxNbOfSoldiers: 12
+  m_maxNbOfSoldiers: 2
   m_maxNbOfRows: 3
-  m_Target: {fileID: 0}
-  m_nbOfSoliders: 0
   m_nbOfRows: 0
   m_State: 0
-  m_TargetPosition: {x: 0, y: 0, z: 0}
+  m_nbOfIdle: 0
   m_SoldierPrefab: {fileID: 340194263874677876, guid: 108126d2244f2b042b02a44c6860d7ff,
     type: 3}
   m_TargetCirclePrefab: {fileID: 7636342358486146422, guid: a4dc9595d3d1ffd4facdb3cdd183ccab,

@@ -5,8 +5,8 @@ using UnityEngine;
 public class Unit : MonoBehaviour
 {
     [Header("Player")]
-    [SerializeField] private Color m_TeamColor;
-    [SerializeField] private string m_teamName;
+    private Color m_TeamColor;
+    private string m_teamName;
     private string m_enemyTeamName;
 
     // Unit parameters
@@ -18,19 +18,16 @@ public class Unit : MonoBehaviour
 
     // Unit data
     [Header("Data")]
-    // TODO: MAKE PRIVATE
-    [SerializeField] public Collider m_EnemyTarget;
-    [SerializeField] private int m_nbOfSoliders;
+    private Collider m_EnemyTarget;
     [SerializeField] private int m_nbOfRows;
     // TODO: MAKE PRIVATE
     public UnitState m_State = UnitState.Idle;
-    private int m_nbOfMoving = 0;
+    public int m_nbOfIdle = 0;
 
     // Unit movement information
     [Header("Movement")]
     private List<Vector3> m_TargetSolPositions = new List<Vector3>();
-    // TODO: MAKE PRIVATE
-    public Vector3 m_TargetPosition = new Vector3();
+    private Vector3 m_TargetPosition = new Vector3();
 
     // System variables
     [Header("System")]
@@ -59,12 +56,8 @@ public class Unit : MonoBehaviour
     private void FixedUpdate ()
     {
         // Change unit stage based on what soldiers are doing
-        if (m_State == UnitState.Moving && m_nbOfMoving == 0) {
+        if (m_State == UnitState.Moving && m_nbOfIdle == m_Soldiers.Count)
             ChangeState(UnitState.Idle);
-        }
-
-        if (m_State == UnitState.Idle && m_nbOfMoving == m_nbOfSoliders)
-            ChangeState(UnitState.Moving);
 
         // State machine deciding a unit's behaviours, which are in turn passed down to soldiers
         switch (m_State) {
@@ -80,12 +73,11 @@ public class Unit : MonoBehaviour
                 Attack();
                 break;
 
-            case UnitState.Engaged:
+            case UnitState.Seeking:
                 CalculateUnitCollider();
                 break;
 
-            case UnitState.Retreating:
-                CalculateUnitCollider();
+            default:
                 break;
         }
     }
@@ -142,7 +134,6 @@ public class Unit : MonoBehaviour
         }
 
         m_nbOfRows = m_maxNbOfRows;
-        m_nbOfSoliders = m_maxNbOfSoldiers;
     }
 
 
@@ -223,26 +214,39 @@ public class Unit : MonoBehaviour
     {
         m_State = ut;
 
-        // If going back to an Idle state, remove target circle if there are any
-        if (ut == UnitState.Idle) {
-            if (m_TargetCircles.Count > 0) {
-                foreach (GameObject g in m_TargetCircles)
-                    Destroy(g);
-            }
-        } else if (ut == UnitState.Moving) {
-            m_TargetSolPositions = CalculateSoldierPositions(m_TargetPosition);
-            DisplayTargetPositions();
-        } else if (ut == UnitState.Attacking) {
-            DisplayTargetPositions();
+        switch (ut) {
+            case UnitState.Idle:
+                if (m_TargetCircles.Count > 0) {
+                    foreach (GameObject g in m_TargetCircles)
+                        Destroy(g);
+                }
+                break;
+
+            case UnitState.Moving:
+                m_nbOfIdle = 0;
+                m_TargetSolPositions = CalculateSoldierPositions(m_TargetPosition);
+                DisplayTargetPositions();
+                break;
+
+            case UnitState.Seeking:
+                m_nbOfIdle = 0;
+                break;
+
+            case UnitState.Attacking:
+                m_nbOfIdle = 0;
+                DisplayTargetPositions();
+                break;
         }
     }
 
     #endregion SPAWNING, MOVEMENT & STATE MACHINE
 
+    #region PUBLIC METHODS
+
     #region UI ELEMENTS
 
     // Activate or deactivate all circular selectors below individual soldiers
-    private void ToggleAllSelectors (bool turnOn)
+    public void ToggleAllSelectors (bool turnOn)
     {
         foreach (GameObject s in m_Soldiers) {
             Soldier soldier = s.GetComponent<Soldier>();
@@ -255,7 +259,7 @@ public class Unit : MonoBehaviour
 
 
     // Tell each soldier in this unit to activate or deactivate their selector
-    private void ToggleOnSelect ()
+    public void ToggleOnSelect ()
     {
         foreach (GameObject s in m_Soldiers) {
             Soldier soldier = s.GetComponent<Soldier>();
@@ -269,7 +273,7 @@ public class Unit : MonoBehaviour
 
 
     // Display or hide the target positions for each soldier in this unit
-    private void DisplayTargetPositions ()
+    public void DisplayTargetPositions ()
     {
         foreach (GameObject g in m_TargetCircles)
             Destroy(g);
@@ -286,14 +290,14 @@ public class Unit : MonoBehaviour
             else {
                 DrawAttackingLine();
             }
-            
+
         }
     }
 
 
 
     // Draw an attacking line from the current position to the target position
-    private void DrawAttackingLine (Unit unit = null)
+    public void DrawAttackingLine (Unit unit = null)
     {
         if (m_isSelected && unit) {
             m_LRenderer.SetPosition(0, GetBoundsCentre());
@@ -302,18 +306,15 @@ public class Unit : MonoBehaviour
     }
 
 
-    #endregion UI ELEMENTS
-
-    #region PUBLIC METHODS
 
     // Used for UI, displays selector circles below units if selected (or hides if not)
     public void MarkUnselected ()
-        {
-            m_isSelected = false;
-            ToggleOnSelect();
-        }
+    {
+        m_isSelected = false;
+        ToggleOnSelect();
+    }
 
-
+    #endregion UI ELEMENTS
 
     // This returns the centre point of this unit based on the calculated collider
     public Vector3 GetBoundsCentre () => gameObject.GetComponent<Collider>() ?
@@ -326,28 +327,32 @@ public class Unit : MonoBehaviour
     
 
 
-    // Give a command to a unit if it can hear it (i.e. not retreating)
+    // Give a command to a unit and its soldiers
     public void GiveCommand (UnitState st, Vector3 pos, Collider col = null)
     {
-        if (m_State != UnitState.Retreating) {
-            SetTargetPosition(pos);
-            SetTarget(col);
-            ChangeState(st);
-        }
+        // Reset idle counter
+        m_nbOfIdle = 0;
+
+        // Set target position, target (if any) and change Unit state
+        SetTargetPosition(pos);
+        SetTarget(col);
+        ChangeState(st);
     }
 
 
 
     // Inform the Unit of what each soldier is doing (moving or stopped)
-    public void UpdateNbOfMoving (int nb) => m_nbOfMoving += nb;
+    public void UpdateNbOfIdle (int nb) => m_nbOfIdle += nb;
 
 
 
     // TODO
     // Inform the Unit that one of its soldiers is fighting
-    public void TellIsFighting ()
+    public void TellIsFighting (Unit enemyUnit)
     {
-
+        m_EnemyTarget = enemyUnit.GetComponent<Collider>();
+        if (m_EnemyTarget)
+            ChangeState(UnitState.Attacking);
     }
 
 
