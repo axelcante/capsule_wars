@@ -1,7 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using static UnityEditor.PlayerSettings;
 
 public class Unit : MonoBehaviour
 {
@@ -19,21 +18,25 @@ public class Unit : MonoBehaviour
 
     // Unit data
     [Header("Data")]
+    // TODO: MAKE PRIVATE
+    [SerializeField] public Collider m_EnemyTarget;
     [SerializeField] private int m_nbOfSoliders;
     [SerializeField] private int m_nbOfRows;
     // TODO: MAKE PRIVATE
     public UnitState m_State = UnitState.Idle;
-    public int m_nbOfMoving = 0;
+    private int m_nbOfMoving = 0;
 
     // Unit movement information
     [Header("Movement")]
     private List<Vector3> m_TargetSolPositions = new List<Vector3>();
-    private Vector3 m_TargetPosition = new Vector3();
+    // TODO: MAKE PRIVATE
+    public Vector3 m_TargetPosition = new Vector3();
 
     // System variables
     [Header("System")]
     [SerializeField] private GameObject m_SoldierPrefab;
     [SerializeField] private GameObject m_TargetCirclePrefab;
+    [SerializeField] private LineRenderer m_LRenderer;
     private List<GameObject> m_TargetCircles = new List<GameObject>();
     [SerializeField] private float m_rowSpacing = 2f;
     [SerializeField] private float m_colSpacing = 2f;
@@ -74,6 +77,7 @@ public class Unit : MonoBehaviour
 
             case UnitState.Attacking:
                 CalculateUnitCollider();
+                Attack();
                 break;
 
             case UnitState.Engaged:
@@ -178,9 +182,9 @@ public class Unit : MonoBehaviour
         List<Vector3> positions = new List<Vector3>();
 
         // Calculate the number of columns needed based on the number of rows and soldiers
-        int numCols = Mathf.CeilToInt((float)m_nbOfSoliders / m_nbOfRows);
+        int numCols = m_nbOfRows > 0 ? Mathf.CeilToInt((float)m_Soldiers.Count / m_nbOfRows) : 1;
 
-        for (int i = 0; i < m_nbOfSoliders; i++) {
+        for (int i = 0; i < m_Soldiers.Count; i++) {
             // Calculate the row and column of the current soldier
             int row = i / numCols;
             int col = i % numCols;
@@ -195,23 +199,22 @@ public class Unit : MonoBehaviour
         }
 
         return positions;
+    }
 
-            /*
-             * TODO: DELETE WHEN NO LONGER NEEDED
-             */
-            //List<Vector3> positions = new List<Vector3>();
 
-            //foreach(GameObject s in m_Soldiers) {
-            //    Vector3 newPos = s.transform.position + unitPos;
-            //    positions.Add(newPos);
-            //    Soldier soldier = s.GetComponent<Soldier>();
-            //    if (soldier) {
-            //        soldier.SetTargetPosition(newPos);
-            //    }
-            //}
 
-            //return positions;
+    // Constantly move towards target enemy position and update drawn target line
+    private void Attack ()
+    {
+        if (m_EnemyTarget) {
+            Unit enemyUnit = m_EnemyTarget.gameObject.GetComponent<Unit>();
+            if (enemyUnit) {
+                SetTargetPosition(enemyUnit.GetBoundsCentre());
+                m_TargetSolPositions = CalculateSoldierPositions(m_TargetPosition);
+                DrawAttackingLine(enemyUnit);
+            }
         }
+    }
 
 
 
@@ -228,6 +231,8 @@ public class Unit : MonoBehaviour
             }
         } else if (ut == UnitState.Moving) {
             m_TargetSolPositions = CalculateSoldierPositions(m_TargetPosition);
+            DisplayTargetPositions();
+        } else if (ut == UnitState.Attacking) {
             DisplayTargetPositions();
         }
     }
@@ -269,11 +274,33 @@ public class Unit : MonoBehaviour
         foreach (GameObject g in m_TargetCircles)
             Destroy(g);
 
+        m_LRenderer.enabled = m_isSelected && m_EnemyTarget;
+
         if (m_isSelected) {
-            foreach (Vector3 tp in m_TargetSolPositions)
-                m_TargetCircles.Add(Instantiate(m_TargetCirclePrefab, new Vector3(tp.x, 0.1f, tp.z), Quaternion.Euler(90f, 0f, 0f), transform));
+            // Moving
+            if (m_EnemyTarget == null) {
+                foreach (Vector3 tp in m_TargetSolPositions)
+                    m_TargetCircles.Add(Instantiate(m_TargetCirclePrefab, new Vector3(tp.x, 0.1f, tp.z), Quaternion.Euler(90f, 0f, 0f), transform));
+            }
+            // Attacking
+            else {
+                DrawAttackingLine();
+            }
+            
         }
     }
+
+
+
+    // Draw an attacking line from the current position to the target position
+    private void DrawAttackingLine (Unit unit = null)
+    {
+        if (m_isSelected && unit) {
+            m_LRenderer.SetPosition(0, GetBoundsCentre());
+            m_LRenderer.SetPosition(1, unit.GetBoundsCentre());
+        }
+    }
+
 
     #endregion UI ELEMENTS
 
@@ -288,26 +315,50 @@ public class Unit : MonoBehaviour
 
 
 
+    // This returns the centre point of this unit based on the calculated collider
+    public Vector3 GetBoundsCentre () => gameObject.GetComponent<Collider>() ?
+            gameObject.GetComponent<Collider>().bounds.center :
+            Vector3.zero;
     // This returns the centre point of this unit based on the calculated collider, transforming it into local space
     public Vector3 GetBoundsCentreLocal () => gameObject.GetComponent<Collider>() ?
             transform.InverseTransformPoint(gameObject.GetComponent<Collider>().bounds.center) :
             Vector3.zero;
+    
 
 
-
-    // Set target position to move towards when not retreating and calculate soldier positions
-    public void SetTargetPosition (Vector3 pos)
+    // Give a command to a unit if it can hear it (i.e. not retreating)
+    public void GiveCommand (UnitState st, Vector3 pos, Collider col = null)
     {
         if (m_State != UnitState.Retreating) {
-            m_TargetPosition = pos;
-            ChangeState(UnitState.Moving);
+            SetTargetPosition(pos);
+            SetTarget(col);
+            ChangeState(st);
         }
     }
 
 
 
-    // Inform the Unit of what each soldier is doing
+    // Inform the Unit of what each soldier is doing (moving or stopped)
     public void UpdateNbOfMoving (int nb) => m_nbOfMoving += nb;
+
+
+
+    // TODO
+    // Inform the Unit that one of its soldiers is fighting
+    public void TellIsFighting ()
+    {
+
+    }
+
+
+
+    // Inform the Unit that one of its soldiers has perished
+    public void UpdateOnDeath (GameObject g)
+    {
+        m_Soldiers.Remove(g);
+        if (m_Soldiers.Count == 0)
+            Destroy(gameObject);
+    }
 
 
 
@@ -317,6 +368,8 @@ public class Unit : MonoBehaviour
     public void SetEnemyTeamName (string name) => m_enemyTeamName = name;
     public Color GetTeamColor () => m_TeamColor;
     public void SetTeamColor (Color col) => m_TeamColor = col;
+    private void SetTargetPosition (Vector3 pos) => m_TargetPosition = pos;
+    private void SetTarget (Collider col) => m_EnemyTarget = col;
 
     #endregion PUBLIC METHODS
 }

@@ -158,11 +158,11 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 128
   m_distanceToStopThresh: 0.075
-  m_distanceToMoveThresh: 0.2
   m_distanceToSlowDown: 2
   m_maxVelocityPerFrame: 0.07
-  m_avoidanceDistance: 1.05
+  m_avoidanceDistance: 1.1
   m_avoidanceForce: 0.8
+  m_avoidanceWeight: 1.2
   m_SpeedCurve:
     serializedVersion: 2
     m_Curve:
@@ -205,9 +205,16 @@ MonoBehaviour:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
-  m_maxSpeed: 2.5
-  m_distance: 0
+  m_maxSpeed: 1.2
+  m_chargeSpeed: 2
+  m_TargetPosition: {x: 0, y: 0, z: 0}
+  m_detectEnemyDistance: 10
+  m_repulsionForce: 30
+  m_baseDamage: 5
   m_State: 0
+  m_EnemySoldier: {fileID: 0}
+  m_maxHealth: 100
+  m_health: 0
 --- !u!1 &6251456739315228686
 GameObject:
   m_ObjectHideFlags: 0

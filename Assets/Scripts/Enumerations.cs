@@ -1,3 +1,4 @@
+// It's nice to dream. There are only melee units in this version, apologies!
 public enum UnitType
 {
     Melee,
@@ -25,6 +26,6 @@ public enum SoldierState
 {
     Idle,
     Moving,
-    Charging,
     Fighting,
+    Retreating
 }

@@ -56,7 +56,12 @@ public class GameManager : MonoBehaviour
 
         // Move selected to unit to mouse position
         if (Input.GetKeyDown(KeyCode.Mouse1) && m_SelectedUnit != null) {
-            m_SelectedUnit.SetTargetPosition(CameraScript.Instance.GetMouseWorldPos());
+            Collider t_col = CameraScript.Instance.GetHoveredCollider();
+            if (t_col == null || t_col.tag == m_SelectedUnit.tag)
+                m_SelectedUnit.GiveCommand(UnitState.Moving, CameraScript.Instance.GetMouseWorldPos());
+            else if (t_col.tag != m_SelectedUnit.tag) {
+                m_SelectedUnit.GiveCommand(UnitState.Attacking, CameraScript.Instance.GetMouseWorldPos(), t_col);
+            }
         }
     }
 

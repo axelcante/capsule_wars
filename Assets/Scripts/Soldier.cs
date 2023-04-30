@@ -18,24 +18,33 @@ public class Soldier : MonoBehaviour
     [SerializeField] private Rigidbody m_Rigidbody;
     [SerializeField] private LayerMask m_LayerMask;
     [SerializeField] private float m_distanceToStopThresh = 0.05f;
-    [SerializeField] private float m_distanceToMoveThresh = 0.7f;
     [SerializeField] private float m_distanceToSlowDown = 5f;
     [SerializeField] private float m_maxVelocityPerFrame = 0.07f;
     [SerializeField] private float m_avoidanceDistance = 5f; 
     [SerializeField] private float m_avoidanceForce = 10f;
+    [SerializeField] private float m_avoidanceWeight = 1.2f;
 
     [Header("Movement")]
     [SerializeField] private AnimationCurve m_SpeedCurve;
     [SerializeField] private float m_maxSpeed = 1f;
-    private Vector3 m_TargetPosition = new Vector3();
-    private Vector3 m_Direction = new Vector3();
+    [SerializeField] private float m_chargeSpeed = 2f;
     // TODO: MAKE PRIVATE
-    public float m_distance = 0f;
+    public Vector3 m_TargetPosition = new Vector3();
+    private Vector3 m_Direction = new Vector3();
+    private float m_distance = 0f;
     private float m_maxDistance = 0f;
+
+    [Header("Combat")]
+    [SerializeField] private float m_detectEnemyDistance = 3f;
+    [SerializeField] private float m_baseDamage = 5f;
 
     [Header("Data")]
     // TODO: SET TO PRIVATE
     public SoldierState m_State = SoldierState.Idle;
+    public Soldier m_EnemySoldier;
+    [SerializeField] private float m_maxHealth = 100f;
+    // TODO: MAKE PRIVATE
+    public float m_health;
     private bool m_isAlive = true;
     private int m_row;
 
@@ -46,6 +55,7 @@ public class Soldier : MonoBehaviour
     {
         m_TargetPosition = new Vector3(transform.position.x, 0f, transform.position.z);
         m_Collider.tag = m_Unit.GetTeamName();
+        m_health = m_maxHealth;
     }
 
 
@@ -63,17 +73,32 @@ public class Soldier : MonoBehaviour
         switch (m_State) {
             case SoldierState.Idle:
                 MaintainPosition();
+                LookForEnemy(m_detectEnemyDistance);
                 break;
 
             case SoldierState.Moving:
                 Move();
-                break;
-
-            case SoldierState.Charging:
+                LookForEnemy(m_detectEnemyDistance);
                 break;
 
             case SoldierState.Fighting:
+                GetFightPosition();
+                Charge();
                 break;
+        }
+    }
+
+
+
+    // Detect collisions -- FIGHT TO THE DEATH
+    private void OnCollisionStay (Collision collision)
+    {
+        if (IsEnemy(collision.collider)) {
+            if (m_State == SoldierState.Fighting) {
+                DealDamage(collision.collider);
+            }
+        } else { // Crash into ally or obstacle
+            // TODO?
         }
     }
 
@@ -105,28 +130,10 @@ public class Soldier : MonoBehaviour
             return;
         }
 
-        Vector3 newDirection = m_Direction.normalized;
-        if (!noSteer) {
-            Vector3 y0Position = new Vector3(transform.position.x, 0f, transform.position.z);
-            // STEERING
-            // Check for any colliders in the path we are looking to take
-            Collider[] colliders = Physics.OverlapSphere(y0Position, m_avoidanceDistance, m_LayerMask);
-            Vector3 avoidanceVec = Vector3.zero;
-            foreach (Collider collider in colliders) {
-                if (collider.gameObject.CompareTag("Obstacle")||
-                    collider.gameObject.CompareTag(m_Unit.GetTeamName())) {
-                    // calculate repulsion force to avoid the obstacle/enemy
-                    Vector3 colY0Position = new Vector3(collider.transform.position.x, 0f, collider.transform.position.z);
-                    Vector3 repulsionDirection = (y0Position - colY0Position).normalized;
-                    avoidanceVec += repulsionDirection * m_avoidanceForce;
-                }
-            }
-            newDirection += avoidanceVec;
-        }
-
+        // Decide if soldier should steer around obstacles and allies
+        Vector3 newDirection = noSteer ? m_Direction.normalized : Steer();
 
         // Calculate the target speed based on the distance to the target and a reversed evaluation curve (goes from 1 to 0 here)
-        // Couldn't quite create the slowdown I wanted without having abrubt stops when asking to move too close by
         float speed;
         if (m_distance <= m_distanceToSlowDown)
             speed = m_SpeedCurve.Evaluate(m_distance / m_maxDistance) * m_maxSpeed / 2;
@@ -136,7 +143,7 @@ public class Soldier : MonoBehaviour
         // Calculate the target velocity based on the move speed
         Vector3 targetVelocity = newDirection * speed;
 
-        // Calculate the velocity change required to reach the target velocity if accelerating
+        // Calculate the velocity change required to reach the target velocity as if accelerating
         Vector3 velocityChange = targetVelocity - m_Rigidbody.velocity;
         velocityChange = Vector3.ClampMagnitude(velocityChange, m_maxVelocityPerFrame);
 
@@ -146,27 +153,135 @@ public class Soldier : MonoBehaviour
 
 
 
-    // Maintain a soldier's position and look to get back to it if moved by another force (when Idle)
-    private void MaintainPosition ()
+    // Charge towards an enemy soldier - simplified version of the above Move() method
+    private void Charge ()
     {
-        if (m_distance > m_distanceToStopThresh) {
-            ChangeState(SoldierState.Moving);
-        }
+        // Avoid obstacles and allies
+        Vector3 newDirection = Steer();
+
+        // Calculate the target velocity based on the charge speed
+        Vector3 targetVelocity = newDirection * m_chargeSpeed;
+
+        // Calculate the velocity change required to reach the target velocity as if accelerating
+        Vector3 velocityChange = targetVelocity - m_Rigidbody.velocity;
+        velocityChange = Vector3.ClampMagnitude(velocityChange, m_maxVelocityPerFrame);
+
+        // Move the soldier's rigidbody by adding a force
+        m_Rigidbody.AddForce(velocityChange, ForceMode.VelocityChange);
     }
 
 
 
-    // Change this soldier's state
+    // Move while avoiding obstacles and ally soldiers
+    private Vector3 Steer ()
+    {
+        Vector3 normDirection = m_Direction.normalized;
+        Vector3 y0Position = new Vector3(transform.position.x, 0f, transform.position.z);
+
+        // Check for any colliders in the path we are looking to take
+        Collider[] colliders = Physics.OverlapSphere(y0Position, m_avoidanceDistance, m_LayerMask);
+        Vector3 avoidanceVec = Vector3.zero;
+        foreach (Collider collider in colliders) {
+            if (IsObstacle(collider) || IsAlly(collider)) {
+                // Calculate repulsion force to avoid the obstacle/ally
+                Vector3 colY0Position = new Vector3(collider.transform.position.x, 0f, collider.transform.position.z);
+                Vector3 repulsionDirection = (y0Position - colY0Position).normalized;
+                avoidanceVec += repulsionDirection * m_avoidanceForce * m_avoidanceWeight;
+            }
+        }
+        return normDirection + avoidanceVec;
+    }
+
+
+
+    // Maintain a soldier's position and look to get back to it if moved by another force (when Idle)
+    private void MaintainPosition ()
+    {
+        if (m_distance > m_distanceToStopThresh)
+            ChangeState(SoldierState.Moving);
+    }
+
+
+
+    // Look for enemies in range
+    private void LookForEnemy (float dist)
+    {
+        Vector3 y0Position = new Vector3(transform.position.x, 0f, transform.position.z);
+        Collider[] colliders = Physics.OverlapSphere(y0Position, dist, m_LayerMask);
+
+        foreach (Collider collider in colliders) {
+            if (IsEnemy(collider)) {
+                m_EnemySoldier = collider.gameObject.GetComponent<Soldier>();
+                if (m_EnemySoldier != null) {
+                    ChangeState(SoldierState.Fighting);
+                }
+            }
+        }
+    }
+
+
+    
+    // Deal damage to an enemy soldier based on charge speed
+    private void DealDamage (Collider collider)
+    {
+        Soldier targetSoldier = collider.gameObject.GetComponent<Soldier>();
+
+        if (targetSoldier) {
+            float randomiser = Random.Range(0f, 1f);
+            float dmg = m_baseDamage * Mathf.Max(1, randomiser);
+             targetSoldier.TakeDamage(dmg * Time.deltaTime);
+
+            // TODO REMOVE
+            if (dmg > 10) {
+                Debug.Log(dmg);
+            }
+        }
+    }
+
+
+    // TODO
+    // What happens when the soldier is killed (health < 0)
+    private void OnDeath ()
+    {
+        m_Unit.UpdateOnDeath(gameObject);
+        Destroy(gameObject);
+    }
+
+
+
+    // Get a new target position based on the target enemy, or set as idle and look for other enemies around
+    private void GetFightPosition ()
+    {
+        if (m_EnemySoldier)
+            m_TargetPosition = m_EnemySoldier.gameObject.transform.position;
+        else
+            ChangeState(SoldierState.Idle);
+    }
+
+
+
+    // Change this soldier's state and take action if necessary
     private void ChangeState (SoldierState st)
     {
         if (m_State != st) {
             m_State = st;
 
-            // Could be switch case if this becomes a more complicated if/else
-            if (st == SoldierState.Idle)
-                m_Unit.UpdateNbOfMoving(-1);
-            else if (st == SoldierState.Moving)
-                m_Unit.UpdateNbOfMoving(1);
+            switch (st) {
+                case SoldierState.Idle:
+                    m_Unit.UpdateNbOfMoving(-1);
+                    break;
+
+                case SoldierState.Moving:
+                    m_Unit.UpdateNbOfMoving(1);
+                    break;
+
+                case SoldierState.Fighting:
+                    m_Unit.TellIsFighting();
+                    break;
+
+                default:
+                    break;
+            }
         }
     }
 
@@ -174,6 +289,17 @@ public class Soldier : MonoBehaviour
     #endregion PRIVATE METHODS
 
     #region PUBLIC METHODS
+
+    // Take damage (called by other enemy soldier scripts)
+    public void TakeDamage (float amount)
+    {
+        m_health -= amount;
+        if (m_health <= 0) {
+            OnDeath();
+        }
+    }
+
+
 
     // Turn the selector sprite on below this soldier
     public void ToggleSelector (bool toggle) => m_SelectorImage.enabled = toggle;
@@ -197,10 +323,18 @@ public class Soldier : MonoBehaviour
     // ******* RANT *******
     // Sorry for color, colour. I was born in the US and the English language as a whole needs to get its s*it together
     // Same thing with -ise and -ize. I know we threw your tea in the ocean, but you had it coming.
+    // Don't even get me started with "centre" and "center"...
     public void SetColor (Color color)
     {
         gameObject.GetComponent<MeshRenderer>().material.color = color;
     }
+
+
+
+    // Collider tag tests
+    public bool IsEnemy (Collider collider) => !collider.CompareTag(m_Collider.tag) && !collider.CompareTag("Obstacle");
+    public bool IsAlly (Collider collider) => collider.CompareTag(m_Collider.tag);
+    public bool IsObstacle (Collider collider) => collider.CompareTag("Obstacle");
 
 
 
