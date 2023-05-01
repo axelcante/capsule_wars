@@ -48,9 +48,11 @@ MonoBehaviour:
   m_maxNbOfSoldiers: 12
   m_maxNbOfRows: 3
   m_nbOfRows: 0
-  m_State: 0
   m_SoldierPrefab: {fileID: 340194263874677876, guid: 108126d2244f2b042b02a44c6860d7ff,
     type: 3}
+  m_FlagPrefab: {fileID: 7735595538416933400, guid: 744b41d0d96c24a4c81820f8b23132e8,
+    type: 3}
+  m_flagPosOffset: {x: 0.8, y: 0, z: 0.8}
   m_TargetCirclePrefab: {fileID: 7636342358486146422, guid: a4dc9595d3d1ffd4facdb3cdd183ccab,
     type: 3}
   m_LRenderer: {fileID: 2510877157198957802}

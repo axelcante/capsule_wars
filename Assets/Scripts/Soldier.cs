@@ -12,6 +12,11 @@ public class Soldier : MonoBehaviour
     public Image m_SelectorImage;
     public Color m_SelectorColor;
     public float m_hoveredAlpha;
+    public Material m_BloodSoldier;
+    private Material m_BloodSoldierInstance;
+    public float m_bloodMin = 4f;
+    public float m_bloodMax = 8f;
+    private float m_bloodStr;
 
     [Header("Physics")]
     [SerializeField] private Collider m_Collider;
@@ -49,14 +54,34 @@ public class Soldier : MonoBehaviour
 
     #region PRIVATE METHODS
 
+    // Awake is called when this script is loaded
+    private void Awake ()
+    {
+        // Data
+        m_TargetPosition = new Vector3(transform.position.x, 0f, transform.position.z);
+        m_health = m_maxHealth;
+
+        // Damage
+        m_damageRandomiser = Random.Range(0.7f, 1.3f);
+
+        // Material
+        m_BloodSoldierInstance = Instantiate(m_BloodSoldier);
+        if (m_BloodSoldierInstance) {
+            m_bloodStr = Random.Range(m_bloodMin, m_bloodMax);
+            m_BloodSoldierInstance.SetFloat("_Strength", m_bloodStr);
+            m_BloodSoldierInstance.SetFloat("_Damage", 1f);
+            GetComponent<Renderer>().material = m_BloodSoldierInstance;
+        } else
+            Debug.LogWarning("Could not instantiate material instance");
+    }
+
+
+
     // Start is called before the first frame update
     private void Start()
     {
-        m_TargetPosition = new Vector3(transform.position.x, 0f, transform.position.z);
+        // Get Unit name for other soldiers to be able to know if friend or foe
         m_Collider.tag = m_Unit.GetTeamName();
-        m_health = m_maxHealth;
-
-        m_damageRandomiser = Random.Range(0.7f, 1.3f);
     }
 
 
@@ -294,6 +319,9 @@ public class Soldier : MonoBehaviour
         if (m_health <= 0) {
             OnDeath();
         }
+
+        // Update shader graphics with a value going from 1 (max health) to 0 (dead in the water)
+        m_BloodSoldierInstance.SetFloat("_Damage", m_health / m_maxHealth);
     }
 
 
@@ -323,7 +351,7 @@ public class Soldier : MonoBehaviour
     // Don't even get me started with "centre" and "center"...
     public void SetColor (Color color)
     {
-        gameObject.GetComponent<MeshRenderer>().material.color = color;
+        m_BloodSoldierInstance.SetColor("_BaseColor", color);
     }
 
 

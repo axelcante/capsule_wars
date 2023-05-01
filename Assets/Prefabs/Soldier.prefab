@@ -65,7 +65,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 054067ca3a2012b45b9546dd357f13cb, type: 2}
+  - {fileID: 2100000, guid: 16009cc6b80bd1347a5e06973faf41de, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -152,6 +152,9 @@ MonoBehaviour:
   m_SelectorImage: {fileID: 2168368517360761924}
   m_SelectorColor: {r: 0.2, g: 1, b: 0, a: 0.4}
   m_hoveredAlpha: 0.4
+  m_BloodSoldier: {fileID: 2100000, guid: 16009cc6b80bd1347a5e06973faf41de, type: 2}
+  m_bloodMin: 4
+  m_bloodMax: 8
   m_Collider: {fileID: 1892072045061245553}
   m_Rigidbody: {fileID: 87335152898453691}
   m_SoldierLayer:
@@ -210,8 +213,8 @@ MonoBehaviour:
   m_detectEnemyDistance: 10
   m_DPS: 15
   m_distanceToDamange: 2
-  m_State: 0
   m_maxHealth: 100
+  m_health: 0
 --- !u!1 &6251456739315228686
 GameObject:
   m_ObjectHideFlags: 0

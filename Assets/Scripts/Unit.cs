@@ -1,7 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.UIElements;
 
 public class Unit : MonoBehaviour
 {
@@ -32,6 +31,8 @@ public class Unit : MonoBehaviour
     // System variables
     [Header("System")]
     [SerializeField] private GameObject m_SoldierPrefab;
+    [SerializeField] private GameObject m_FlagPrefab;
+    [SerializeField] private Vector3 m_flagPosOffset;
     [SerializeField] private GameObject m_TargetCirclePrefab;
     [SerializeField] private LineRenderer m_LRenderer;
     private List<GameObject> m_TargetCircles = new List<GameObject>();
@@ -162,6 +163,16 @@ public class Unit : MonoBehaviour
             soldier.GetComponent<Soldier>().SetRow(row);
             soldier.GetComponent<Soldier>().SetColor(m_TeamColor);
             m_Soldiers.Add(soldier);
+
+            // Span a flag attached to the middle soldier
+            if (i == m_maxNbOfSoldiers / 2) {
+                Vector3 flagPos = new Vector3(soldierPos.x, 2.5f, soldierPos.z) + m_flagPosOffset;
+                Flag flag = Instantiate(m_FlagPrefab, flagPos, Quaternion.Euler(0, 35, 0), soldier.transform).GetComponentInChildren<Flag>();
+                if (flag)
+                    flag.SetFlagColor(m_TeamColor, m_teamName);
+                else
+                    Debug.LogWarning("Could not find Flag script");
+            }
         }
 
         m_nbOfRows = m_maxNbOfRows;
@@ -187,10 +198,6 @@ public class Unit : MonoBehaviour
         }
 
         Vector3 newCenter = new Vector3(bounds.center.x - transform.position.x, 1f, bounds.center.z - transform.position.z);
-
-        //// Check if collider center has changed since last fixed frame; if not, mark unit as idle
-        //if (collider.center == newCenter)
-            //ChangeState(UnitState.Idle);
 
         collider.center = newCenter;
         collider.size = new Vector3(bounds.size.x + m_colliderPadding, 2.2f, bounds.size.z + m_colliderPadding);
