@@ -22,7 +22,7 @@ public class Unit : MonoBehaviour
     [SerializeField] private int m_nbOfRows;
     // TODO: MAKE PRIVATE
     public UnitState m_State = UnitState.Idle;
-    public int m_nbOfIdle = 0;
+    private int m_nbOfIdle = 0;
 
     // Unit movement information
     [Header("Movement")]
@@ -55,30 +55,35 @@ public class Unit : MonoBehaviour
     // FixedUpdate is called every fixed framerate frame
     private void FixedUpdate ()
     {
-        // Change unit stage based on what soldiers are doing
-        if (m_State == UnitState.Moving && m_nbOfIdle == m_Soldiers.Count)
-            ChangeState(UnitState.Idle);
+        if (GameManager.Instance.GetGameState() == GameFlow.Play) {
+            // Change unit stage based on what soldiers are doing
+            if (m_State != UnitState.Idle && m_nbOfIdle >= m_Soldiers.Count)
+                ChangeState(UnitState.Idle);
+            if (m_State == UnitState.Attacking && !m_EnemyTarget)
+                ChangeState(UnitState.Moving);
 
-        // State machine deciding a unit's behaviours, which are in turn passed down to soldiers
-        switch (m_State) {
-            case UnitState.Idle:
-                break;
+            // State machine deciding a unit's behaviours, which are in turn passed down to soldiers
+            switch (m_State) {
+                case UnitState.Idle:
+                    break;
 
-            case UnitState.Moving:
-                CalculateUnitCollider();
-                break;
+                case UnitState.Moving:
+                    CalculateUnitCollider();
+                    break;
 
-            case UnitState.Attacking:
-                CalculateUnitCollider();
-                Attack();
-                break;
+                case UnitState.Attacking:
+                    CalculateUnitCollider();
+                    Attack();
+                    break;
 
-            case UnitState.Seeking:
-                CalculateUnitCollider();
-                break;
+                case UnitState.Seeking:
+                    CalculateUnitCollider();
+                    Seek();
+                    break;
 
-            default:
-                break;
+                default:
+                    break;
+            }
         }
     }
 
@@ -209,6 +214,14 @@ public class Unit : MonoBehaviour
 
 
 
+    // Seek enemy targets
+    private void Seek ()
+    {
+
+    }
+
+
+
     // Change this unit's state
     private void ChangeState (UnitState ut)
     {
@@ -320,10 +333,6 @@ public class Unit : MonoBehaviour
     public Vector3 GetBoundsCentre () => gameObject.GetComponent<Collider>() ?
             gameObject.GetComponent<Collider>().bounds.center :
             Vector3.zero;
-    // This returns the centre point of this unit based on the calculated collider, transforming it into local space
-    public Vector3 GetBoundsCentreLocal () => gameObject.GetComponent<Collider>() ?
-            transform.InverseTransformPoint(gameObject.GetComponent<Collider>().bounds.center) :
-            Vector3.zero;
     
 
 
@@ -346,7 +355,6 @@ public class Unit : MonoBehaviour
 
 
 
-    // TODO
     // Inform the Unit that one of its soldiers is fighting
     public void TellIsFighting (Unit enemyUnit)
     {
@@ -361,8 +369,18 @@ public class Unit : MonoBehaviour
     public void UpdateOnDeath (GameObject g)
     {
         m_Soldiers.Remove(g);
-        if (m_Soldiers.Count == 0)
+        if (m_Soldiers.Count == 0) {
+            GameManager.Instance.RemoveUnitReference(gameObject);
             Destroy(gameObject);
+        }
+    }
+
+
+
+    // Soldiers can ask the Unit for a new position if they cannot find an enemy in range
+    public void AskForNewPosition ()
+    {
+        m_TargetSolPositions = CalculateSoldierPositions(m_TargetPosition);
     }
 
 

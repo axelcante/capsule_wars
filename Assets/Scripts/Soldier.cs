@@ -28,16 +28,15 @@ public class Soldier : MonoBehaviour
     [SerializeField] private AnimationCurve m_SpeedCurve;
     [SerializeField] private float m_maxSpeed = 1f;
     [SerializeField] private float m_chargeSpeed = 2f;
-    // TODO: MAKE PRIVATE
-    public Vector3 m_TargetPosition = new Vector3();
+    private Vector3 m_TargetPosition = new Vector3();
     private Vector3 m_Direction = new Vector3();
-    // TODO: MAKE PRIVATE
-    public float m_distance = 0f;
+    private float m_distance = 0f;
     private float m_maxDistance = 0f;
 
     [Header("Combat")]
     [SerializeField] private float m_detectEnemyDistance = 3f;
-    [SerializeField] private float m_baseDamage = 5f;
+    [SerializeField] private float m_DPS = 10f;
+    private float m_damangeTimer = 0f;
 
     [Header("Data")]
     // TODO: SET TO PRIVATE
@@ -63,28 +62,30 @@ public class Soldier : MonoBehaviour
     // FixedUpdate is called every fixed framerate frame
     private void FixedUpdate ()
     {
-        CalculateDistanceToTarget();
+        if (GameManager.Instance.GetGameState() == GameFlow.Play) {
+            CalculateDistanceToTarget();
 
-        // Keep soldier upward when alive
-        if (m_isAlive)
-            transform.rotation = Quaternion.Euler(transform.rotation.x, 0f, transform.rotation.z);
+            // Keep soldier upward when alive
+            if (m_isAlive)
+                transform.rotation = Quaternion.Euler(transform.rotation.x, 0f, transform.rotation.z);
 
-        // State machine deciding each soldier's behaviour
-        switch (m_State) {
-            case SoldierState.Idle:
-                MaintainPosition();
-                LookForEnemy(m_detectEnemyDistance);
-                break;
+            // State machine deciding each soldier's behaviour
+            switch (m_State) {
+                case SoldierState.Idle:
+                    MaintainPosition();
+                    LookForEnemy(m_detectEnemyDistance);
+                    break;
 
-            case SoldierState.Moving:
-                Move();
-                LookForEnemy(m_detectEnemyDistance);
-                break;
+                case SoldierState.Moving:
+                    Move();
+                    LookForEnemy(m_detectEnemyDistance);
+                    break;
 
-            case SoldierState.Attacking:
-                GetFightPosition();
-                Charge();
-                break;
+                case SoldierState.Attacking:
+                    GetFightPosition();
+                    Charge();
+                    break;
+            }
         }
     }
 
@@ -97,8 +98,6 @@ public class Soldier : MonoBehaviour
             if (m_State == SoldierState.Attacking) {
                 DealDamage(collision.collider);
             }
-        } else { // Crash into ally or obstacle
-            // TODO?
         }
     }
 
@@ -229,13 +228,13 @@ public class Soldier : MonoBehaviour
 
         if (targetSoldier) {
             float randomiser = Random.Range(0f, 1f);
-            float dmg = m_baseDamage * Mathf.Max(1, randomiser);
+            float dmg = m_DPS * Mathf.Max(1, randomiser);
              targetSoldier.TakeDamage(dmg * Time.deltaTime);
         }
     }
 
 
-    // TODO
+    // TODO - COOLS ANIMATIONS? I wish
     // What happens when the soldier is killed (health < 0)
     private void OnDeath ()
     {
@@ -251,8 +250,8 @@ public class Soldier : MonoBehaviour
         if (m_EnemySoldier)
             m_TargetPosition = m_EnemySoldier.gameObject.transform.position;
         else {
-            SetTargetPosition(new Vector3(transform.position.x, 0f, transform.position.z));
-            ChangeState(SoldierState.Idle);
+            ChangeState(SoldierState.Moving);
+            m_Unit.AskForNewPosition();
         }
     }
 

@@ -27,3 +27,10 @@ public enum SoldierState
     Moving,
     Attacking
 }
+
+// UI
+public enum ButtonAction
+{
+    OnDrag,
+    OnRelease
+}
