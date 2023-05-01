@@ -57,6 +57,11 @@ MonoBehaviour:
   m_rowSpacing: 2.5
   m_colSpacing: 2.5
   m_colliderPadding: 2
+  m_timeToSeek: 1
+  m_distanceToSeek: 300
+  m_UnitLayer:
+    serializedVersion: 2
+    m_Bits: 64
 --- !u!120 &2510877157198957802
 LineRenderer:
   serializedVersion: 2

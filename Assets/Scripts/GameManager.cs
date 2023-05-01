@@ -48,6 +48,16 @@ public class GameManager : MonoBehaviour
                 ResetGame();
             }
 
+            //// TODO: TEMP, REMOVE
+            //if (Input.GetKeyDown(KeyCode.G)) {
+            //    SpawnUnit(CameraScript.Instance.GetMouseWorldPos(), m_Teams[0], m_Teams[1], m_TeamColours[0]);
+            //}
+
+            //// TODO: TEMP, REMOVE
+            //if (Input.GetKeyDown(KeyCode.T)) {
+            //    SpawnUnit(CameraScript.Instance.GetMouseWorldPos(), m_Teams[1], m_Teams[0], m_TeamColours[1]);
+            //}
+
             // Unselect any selected unit if clicking in empty world space
             if (Input.GetKeyDown(KeyCode.Mouse0)) {
                 if (CameraScript.Instance.GetHoveredCollider() == null && m_SelectedUnit != null) {

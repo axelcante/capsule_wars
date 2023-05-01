@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 public class Unit : MonoBehaviour
 {
@@ -20,8 +21,7 @@ public class Unit : MonoBehaviour
     [Header("Data")]
     private Collider m_EnemyTarget;
     [SerializeField] private int m_nbOfRows;
-    // TODO: MAKE PRIVATE
-    public UnitState m_State = UnitState.Idle;
+    private UnitState m_State = UnitState.Idle;
     private int m_nbOfIdle = 0;
 
     // Unit movement information
@@ -40,6 +40,10 @@ public class Unit : MonoBehaviour
     [SerializeField] private float m_colliderPadding = 2f;
     private List<GameObject> m_Soldiers = new List<GameObject>();
     private bool m_isSelected = false;
+    [SerializeField] private float m_timeToSeek = 2f;
+    [SerializeField] private float m_distanceToSeek = 500f;
+    private float m_timer = 0f;
+    [SerializeField] private LayerMask m_UnitLayer;
 
 
 
@@ -48,6 +52,27 @@ public class Unit : MonoBehaviour
     {
         SpawnSoldiers();
         CalculateUnitCollider();
+    }
+
+
+
+    // Update is called once per frame
+    private void Update ()
+    {
+        if (GameManager.Instance.GetGameState() == GameFlow.Play) {
+            switch (m_State) {
+                case UnitState.Seeking:
+                    // Calculate time before pinging - detecting other enemy units - when seeking
+                    if (m_State == UnitState.Seeking) {
+                        m_timer += Time.deltaTime;
+                        if (m_timer >= m_timeToSeek) {
+                            Ping();
+                            m_timer = 0f;
+                        }
+                    }
+                    break;
+            }
+        }
     }
 
 
@@ -65,6 +90,8 @@ public class Unit : MonoBehaviour
             // State machine deciding a unit's behaviours, which are in turn passed down to soldiers
             switch (m_State) {
                 case UnitState.Idle:
+                    // AI CONTROL
+                    ChangeState(UnitState.Seeking);
                     break;
 
                 case UnitState.Moving:
@@ -78,7 +105,6 @@ public class Unit : MonoBehaviour
 
                 case UnitState.Seeking:
                     CalculateUnitCollider();
-                    Seek();
                     break;
 
                 default:
@@ -214,10 +240,34 @@ public class Unit : MonoBehaviour
 
 
 
-    // Seek enemy targets
-    private void Seek ()
+    // Ping to detect enemy units and attack them
+    private void Ping ()
     {
+        Collider thisCol = gameObject.GetComponent<Collider>();
 
+        if (thisCol) {
+            Collider[] colliders = Physics.OverlapSphere(GetBoundsCentre(), m_distanceToSeek, m_UnitLayer);
+            float smallestDistance = 10000f;
+            Unit closestEnemy = null;
+            Collider closestEnemyCollider = null;
+
+            foreach (Collider collider in colliders) {
+                if (!collider.CompareTag(thisCol.tag)) {
+                    Unit enemy = collider.gameObject.GetComponent<Unit>();
+                    if (enemy) {
+                        float d = Vector3.Distance(GetBoundsCentre(), enemy.GetBoundsCentre());
+                        if (d < smallestDistance) {
+                            smallestDistance = d;
+                            closestEnemy = enemy;
+                            closestEnemyCollider = collider;
+                        }
+                    }
+                }
+            }
+
+            if (closestEnemy &&  closestEnemyCollider)
+                GiveCommand(UnitState.Attacking, closestEnemy.GetBoundsCentre(), closestEnemyCollider);
+        }
     }
 
 

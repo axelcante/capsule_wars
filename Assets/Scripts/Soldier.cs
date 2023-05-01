@@ -16,7 +16,7 @@ public class Soldier : MonoBehaviour
     [Header("Physics")]
     [SerializeField] private Collider m_Collider;
     [SerializeField] private Rigidbody m_Rigidbody;
-    [SerializeField] private LayerMask m_LayerMask;
+    [SerializeField] private LayerMask m_SoldierLayer;
     [SerializeField] private float m_distanceToStopThresh = 0.05f;
     [SerializeField] private float m_distanceToSlowDown = 5f;
     [SerializeField] private float m_maxVelocityPerFrame = 0.07f;
@@ -36,14 +36,14 @@ public class Soldier : MonoBehaviour
     [Header("Combat")]
     [SerializeField] private float m_detectEnemyDistance = 3f;
     [SerializeField] private float m_DPS = 10f;
-    private float m_damangeTimer = 0f;
+    [SerializeField] private float m_distanceToDamange = 2f;
+    private float m_damageRandomiser;
 
     [Header("Data")]
-    // TODO: SET TO PRIVATE
-    public SoldierState m_State = SoldierState.Idle;
+    private SoldierState m_State = SoldierState.Idle;
     private Soldier m_EnemySoldier;
     [SerializeField] private float m_maxHealth = 100f;
-    private float m_health;
+    [SerializeField] private float m_health;
     private bool m_isAlive = true;
     private int m_row;
 
@@ -55,6 +55,8 @@ public class Soldier : MonoBehaviour
         m_TargetPosition = new Vector3(transform.position.x, 0f, transform.position.z);
         m_Collider.tag = m_Unit.GetTeamName();
         m_health = m_maxHealth;
+
+        m_damageRandomiser = Random.Range(0.7f, 1.3f);
     }
 
 
@@ -95,7 +97,7 @@ public class Soldier : MonoBehaviour
     private void OnCollisionStay (Collision collision)
     {
         if (IsEnemy(collision.collider)) {
-            if (m_State == SoldierState.Attacking) {
+            if (m_State == SoldierState.Attacking && m_distance <= m_distanceToDamange) {
                 DealDamage(collision.collider);
             }
         }
@@ -179,7 +181,7 @@ public class Soldier : MonoBehaviour
         Vector3 y0Position = new Vector3(transform.position.x, 0f, transform.position.z);
 
         // Check for any colliders in the path we are looking to take
-        Collider[] colliders = Physics.OverlapSphere(y0Position, m_avoidanceDistance, m_LayerMask);
+        Collider[] colliders = Physics.OverlapSphere(y0Position, m_avoidanceDistance, m_SoldierLayer);
         Vector3 avoidanceVec = Vector3.zero;
         foreach (Collider collider in colliders) {
             if (IsObstacle(collider) || IsAlly(collider)) {
@@ -207,13 +209,14 @@ public class Soldier : MonoBehaviour
     private void LookForEnemy (float dist)
     {
         Vector3 y0Position = new Vector3(transform.position.x, 0f, transform.position.z);
-        Collider[] colliders = Physics.OverlapSphere(y0Position, dist, m_LayerMask);
+        Collider[] colliders = Physics.OverlapSphere(y0Position, dist, m_SoldierLayer);
 
         foreach (Collider collider in colliders) {
             if (IsEnemy(collider)) {
                 m_EnemySoldier = collider.gameObject.GetComponent<Soldier>();
                 if (m_EnemySoldier != null) {
                     ChangeState(SoldierState.Attacking);
+                    break;
                 }
             }
         }
@@ -226,11 +229,8 @@ public class Soldier : MonoBehaviour
     {
         Soldier targetSoldier = collider.gameObject.GetComponent<Soldier>();
 
-        if (targetSoldier) {
-            float randomiser = Random.Range(0f, 1f);
-            float dmg = m_DPS * Mathf.Max(1, randomiser);
-             targetSoldier.TakeDamage(dmg * Time.deltaTime);
-        }
+        if (targetSoldier)
+            targetSoldier.TakeDamage(m_DPS * m_damageRandomiser * Time.deltaTime);
     }
 
 
